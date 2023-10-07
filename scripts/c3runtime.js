@@ -4584,18 +4584,18 @@ self.C3_GetObjectRefTable = function () {
 		C3.Plugins.Text.Cnds.IsBoolInstanceVarSet,
 		C3.Plugins.Text.Acts.SetFontColor,
 		C3.Plugins.System.Cnds.CompareBoolVar,
-		C3.Plugins.Sprite.Acts.SetX,
-		C3.Plugins.Sprite.Acts.SetY,
-		C3.Plugins.System.Acts.SetVar,
-		C3.Plugins.Sprite.Exps.X,
-		C3.Plugins.Sprite.Exps.Y,
-		C3.Behaviors.scrollto.Acts.SetEnabled,
-		C3.Plugins.Sprite.Acts.SetVisible,
-		C3.Plugins.Sprite.Acts.MoveToTop,
 		C3.Plugins.System.Acts.SetLayerVisible,
 		C3.Plugins.Audio.Acts.SetSilent,
+		C3.Behaviors.scrollto.Acts.SetEnabled,
+		C3.Plugins.System.Acts.SetVar,
 		C3.Plugins.Text.Acts.TypewriterText,
 		C3.Plugins.Audio.Acts.Stop,
+		C3.Plugins.Sprite.Acts.SetVisible,
+		C3.Plugins.Sprite.Acts.SetX,
+		C3.Plugins.Sprite.Acts.SetY,
+		C3.Plugins.Sprite.Exps.X,
+		C3.Plugins.Sprite.Exps.Y,
+		C3.Plugins.Sprite.Acts.MoveToTop,
 		C3.Plugins.Mouse.Cnds.OnClick,
 		C3.Plugins.Sprite.Cnds.IsBoolInstanceVarSet,
 		C3.Plugins.System.Cnds.CompareVar,
@@ -4617,6 +4617,7 @@ self.C3_GetObjectRefTable = function () {
 		C3.Behaviors.Fade.Acts.StartFade,
 		C3.Plugins.System.Cnds.IsPreview,
 		C3.Plugins.Audio.Acts.PlayAtObject,
+		C3.Plugins.System.Acts.AddVar,
 		C3.Plugins.System.Exps.random,
 		C3.Plugins.System.Acts.SubVar,
 		C3.Behaviors.EightDir.Acts.SetEnabled,
@@ -4629,7 +4630,6 @@ self.C3_GetObjectRefTable = function () {
 		C3.Behaviors.LOS.Acts.SetRange,
 		C3.Behaviors.LOS.Exps.Range,
 		C3.Plugins.System.Cnds.Compare,
-		C3.Plugins.System.Acts.AddVar,
 		C3.Behaviors.Bullet.Acts.SetSpeed,
 		C3.Behaviors.Bullet.Exps.Speed,
 		C3.Plugins.Text.Acts.SetVisible,
@@ -4947,13 +4947,6 @@ self.C3_ExpressionFuncs = [
 		() => "",
 		() => -717716684653567,
 		() => -624835619424255,
-		() => 721,
-		() => 8575,
-		() => 5,
-		p => {
-			const n0 = p._GetNode(0);
-			return () => n0.ExpObject();
-		},
 		() => "Layer 1",
 		() => 0.8,
 		() => "Dian Meng Tak sadarkan DIri Akibat derasnya Arus sungai yang mengalir, tak berapa lama . . .",
@@ -4974,6 +4967,13 @@ self.C3_ExpressionFuncs = [
 		() => 1.5,
 		() => -8,
 		() => 100,
+		() => 721,
+		() => 8575,
+		() => 5,
+		p => {
+			const n0 = p._GetNode(0);
+			return () => n0.ExpObject();
+		},
 		() => "slash",
 		() => 30,
 		() => 0.09,
@@ -5005,10 +5005,7 @@ self.C3_ExpressionFuncs = [
 		},
 		() => 80,
 		() => 360,
-		p => {
-			const v0 = p._GetNode(0).GetVar();
-			return () => (v0.GetValue() + 1);
-		},
+		() => 2,
 		p => {
 			const f0 = p._GetNode(0).GetBoundMethod();
 			return () => f0(0, 20);
@@ -5023,7 +5020,6 @@ self.C3_ExpressionFuncs = [
 		() => "attack",
 		() => 0.6,
 		() => "hit",
-		() => 2,
 		p => {
 			const n0 = p._GetNode(0);
 			return () => (n0.ExpBehavior() + 70);
