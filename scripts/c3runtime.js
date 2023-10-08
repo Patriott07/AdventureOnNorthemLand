@@ -4634,7 +4634,6 @@ self.C3_GetObjectRefTable = function () {
 		C3.Behaviors.Bullet.Exps.Speed,
 		C3.Plugins.Text.Acts.SetVisible,
 		C3.Plugins.Audio.Acts.FadeVolume,
-		C3.Behaviors.Bullet.Cnds.CompareTravelled,
 		C3.Plugins.Text.Cnds.OnCreated,
 		C3.Plugins.Keyboard.Cnds.OnKey,
 		C3.Plugins.System.Acts.GoToLayoutByName,
@@ -4826,6 +4825,7 @@ self.C3_JsPropNameTable = [
 	{map1_shadow2: 0},
 	{map3_trigEnding: 0},
 	{Touch: 0},
+	{map1_manaregen: 0},
 	{mana_hero: 0},
 	{hungry_hero: 0},
 	{PremiumChest: 0},
@@ -5044,6 +5044,7 @@ self.C3_ExpressionFuncs = [
 			return () => f0(0, 4);
 		},
 		() => 14,
+		() => 40,
 		p => {
 			const f0 = p._GetNode(0).GetBoundMethod();
 			return () => Math.floor(f0(5, 20));
@@ -5067,7 +5068,10 @@ self.C3_ExpressionFuncs = [
 		() => 4,
 		() => 19851,
 		() => 8556,
-		() => 1300,
+		p => {
+			const f0 = p._GetNode(0).GetBoundMethod();
+			return () => f0(40, 60);
+		},
 		() => "Di Suatu Desa Terdapatlah gadis Cantik dan pria Tampan  yang dikenal oleh banyak Masyarakat Bernama Dian Meng Dan Bouo Meng",
 		() => "Walaupun memiliki nama ras yang sama mereka bukanlah satu keluarga ataupun satu saudara",
 		() => "Pada suatu hari di pedalaman desa. Dian Meng, Bouo Meng, dan teman-temannya bermain di pinggir-pinggir sungai",
@@ -5080,6 +5084,7 @@ self.C3_ExpressionFuncs = [
 		() => "Terpaksa DIan Meng harus berkelahi dengan beberapa temannya. terjadi Perkelahian Singkat Antara Dian Meng Dan beberapa temannya. Pada Akhirnya",
 		() => "Dian Meng Masuk kedalam derasnya arus sungai untuk menyusul Bouo Meng yang terseret Sungai",
 		() => "Press W to continue",
+		() => "~ ~ Please Wait",
 		() => "map_1",
 		() => "Glaica",
 		() => 8,
