@@ -3766,6 +3766,34 @@ err)}}};
 
 {
 self["C3_Shaders"] = {};
+self["C3_Shaders"]["crystalball"] = {
+	glsl: "#ifdef GL_FRAGMENT_PRECISION_HIGH\n#define highmedp highp\n#else\n#define highmedp mediump\n#endif\nvarying mediump vec2 vTex;\nuniform lowp sampler2D samplerFront;\nuniform mediump vec2 srcStart;\nuniform mediump vec2 srcEnd;\nuniform mediump vec2 layoutStart;\nuniform mediump vec2 layoutEnd;\nconst highmedp vec3 lightPosition = vec3(-0.5, 0.5, 1.0);\nconst highmedp vec3 ambientLightPosition = vec3(0.0, 0.0, 1.0);\nuniform highmedp float radius;\nuniform highmedp float refractiveIndex;\nvoid main(void)\n{\nhighmedp vec2 center = vec2(0.5, 0.5);\nhighmedp vec2 srcSize = srcEnd - srcStart;\nhighmedp vec2 layoutSize = layoutEnd - layoutStart;\nhighmedp float aspectRatio = layoutSize.y / layoutSize.x;\nhighmedp vec2 tex = (vTex - srcStart) / srcSize;\nhighmedp vec2 otherTex = vec2(tex.x, (tex.y * aspectRatio + 0.5 - 0.5 * aspectRatio));\nhighmedp float distanceFromCenter = distance(center, otherTex);\nlowp float checkForPresenceWithinSphere = step(distanceFromCenter, radius);\ndistanceFromCenter = distanceFromCenter / radius;\nhighmedp float normalizedDepth = radius * sqrt(1.0 - distanceFromCenter * distanceFromCenter);\nhighmedp vec3 sphereNormal = normalize(vec3(otherTex - center, normalizedDepth));\nhighmedp vec3 refractedVector = 2.0 * refract(vec3(0.0, 0.0, -1.0), sphereNormal, refractiveIndex);\nhighmedp vec2 sampleTex = vec2(-refractedVector.x, refractedVector.y);\nsampleTex = (sampleTex + 1.0) * 0.5;\nsampleTex = clamp(sampleTex, 0.0, 1.0);\nsampleTex = sampleTex * srcSize + srcStart;\nhighmedp vec4 front = texture2D(samplerFront, sampleTex);\nhighmedp vec3 finalSphereColor = front.rgb;\nhighmedp float lightingIntensity = 2.5 * (1.0 - pow(clamp(dot(ambientLightPosition, sphereNormal), 0.0, 1.0), 0.25));\nfinalSphereColor += lightingIntensity;\nlightingIntensity  = clamp(dot(normalize(lightPosition), sphereNormal), 0.0, 1.0);\nlightingIntensity  = pow(lightingIntensity, 15.0);\nfinalSphereColor += vec3(0.8, 0.8, 0.8) * lightingIntensity;\ngl_FragColor = vec4(finalSphereColor, front.a) * checkForPresenceWithinSphere;\n}",
+	glslWebGL2: "",
+	wgsl: "%%SAMPLERFRONT_BINDING%% var samplerFront : sampler;\n%%TEXTUREFRONT_BINDING%% var textureFront : texture_2d<f32>;\nstruct ShaderParams {\nradius : f32,\nrefractiveIndex : f32\n};\n%%SHADERPARAMS_BINDING%% var<uniform> shaderParams : ShaderParams;\n%%C3PARAMS_STRUCT%%\n%%C3_UTILITY_FUNCTIONS%%\n%%FRAGMENTINPUT_STRUCT%%\n%%FRAGMENTOUTPUT_STRUCT%%\nconst center : vec2<f32> = vec2<f32>(0.5, 0.5);\nconst lightPosition : vec3<f32> = vec3<f32>(-0.5, -0.5, 1.0);\nconst ambientLightPosition : vec3<f32> = vec3<f32>(0.0, 0.0, 1.0);\n@fragment\nfn main(input : FragmentInput) -> FragmentOutput\n{\nvar layoutSize : vec2<f32> = c3Params.layoutEnd - c3Params.layoutStart;\nvar aspectRatio : f32 = layoutSize.y / layoutSize.x;\nvar tex : vec2<f32> = c3_srcToNorm(input.fragUV);\nvar otherTex : vec2<f32> = vec2<f32>(tex.x, (tex.y * aspectRatio + 0.5 - 0.5 * aspectRatio));\nvar distanceFromCenter : f32 = distance(center, otherTex);\nvar checkForPresenceWithinSphere : f32 = step(distanceFromCenter, shaderParams.radius);\ndistanceFromCenter = distanceFromCenter / shaderParams.radius;\nvar normalizedDepth : f32 = shaderParams.radius * sqrt(1.0 - distanceFromCenter * distanceFromCenter);\nvar sphereNormal : vec3<f32> = normalize(vec3<f32>(otherTex - center, normalizedDepth));\nvar refractedVector : vec3<f32> = 2.0 * refract(vec3<f32>(0.0, 0.0, -1.0), sphereNormal, shaderParams.refractiveIndex);\nvar sampleTex : vec2<f32> = -refractedVector.xy;\nsampleTex = (sampleTex + 1.0) * 0.5;\nsampleTex = c3_clamp2(sampleTex, 0.0, 1.0);\nsampleTex = c3_normToSrc(sampleTex);\nvar front : vec4<f32> = textureSample(textureFront, samplerFront, sampleTex);\nvar finalSphereColor : vec3<f32> = front.rgb;\nvar lightingIntensity : f32 = 2.5 * (1.0 - pow(clamp(dot(ambientLightPosition, sphereNormal), 0.0, 1.0), 0.25));\nfinalSphereColor = finalSphereColor + lightingIntensity;\nlightingIntensity = clamp(dot(normalize(lightPosition), sphereNormal), 0.0, 1.0);\nlightingIntensity = pow(lightingIntensity, 15.0);\nfinalSphereColor = finalSphereColor + vec3<f32>(0.8) * lightingIntensity;\nvar output : FragmentOutput;\noutput.color = vec4<f32>(finalSphereColor, front.a) * checkForPresenceWithinSphere;\nreturn output;\n}",
+	blendsBackground: false,
+	usesDepth: false,
+	extendBoxHorizontal: 0,
+	extendBoxVertical: 0,
+	crossSampling: false,
+	mustPreDraw: false,
+	preservesOpaqueness: false,
+	animated: false,
+	parameters: [["radius",0,"percent"],["refractiveIndex",0,"percent"]]
+};
+self["C3_Shaders"]["hsladjust"] = {
+	glsl: "varying mediump vec2 vTex;\nuniform lowp sampler2D samplerFront;\nprecision mediump float;\nuniform float huerotate;\nuniform float satadjust;\nuniform float lumadjust;\nvec3 rgb_to_hsl(vec3 color)\n{\nvec3 hsl = vec3(0.0, 0.0, 0.0);\nfloat fmin = min(min(color.r, color.g), color.b);\nfloat fmax = max(max(color.r, color.g), color.b);\nfloat delta = fmax - fmin;\nhsl.z = (fmax + fmin) / 2.0;\nif (delta == 0.0)\n{\nhsl.x = 0.0;\nhsl.y = 0.0;\n}\nelse\n{\nif (hsl.z < 0.5)\nhsl.y = delta / (fmax + fmin);\nelse\nhsl.y = delta / (2.0 - fmax - fmin);\nfloat dR = (((fmax - color.r) / 6.0) + (delta / 2.0)) / delta;\nfloat dG = (((fmax - color.g) / 6.0) + (delta / 2.0)) / delta;\nfloat dB = (((fmax - color.b) / 6.0) + (delta / 2.0)) / delta;\nif (color.r == fmax)\nhsl.x = dB - dG;\nelse if (color.g == fmax)\nhsl.x = (1.0 / 3.0) + dR - dB;\nelse if (color.b == fmax)\nhsl.x = (2.0 / 3.0) + dG - dR;\nif (hsl.x < 0.0)\nhsl.x += 1.0;\nelse if (hsl.x > 1.0)\nhsl.x -= 1.0;\n}\nreturn hsl;\n}\nfloat hue_to_rgb(float f1, float f2, float hue)\n{\nif (hue < 0.0)\nhue += 1.0;\nelse if (hue > 1.0)\nhue -= 1.0;\nfloat ret;\nif ((6.0 * hue) < 1.0)\nret = f1 + (f2 - f1) * 6.0 * hue;\nelse if ((2.0 * hue) < 1.0)\nret = f2;\nelse if ((3.0 * hue) < 2.0)\nret = f1 + (f2 - f1) * ((2.0 / 3.0) - hue) * 6.0;\nelse\nret = f1;\nreturn ret;\n}\nvec3 hsl_to_rgb(vec3 hsl)\n{\nvec3 rgb = vec3(hsl.z);\nif (hsl.y != 0.0)\n{\nfloat f2;\nif (hsl.z < 0.5)\nf2 = hsl.z * (1.0 + hsl.y);\nelse\nf2 = (hsl.z + hsl.y) - (hsl.y * hsl.z);\nfloat f1 = 2.0 * hsl.z - f2;\nrgb.r = hue_to_rgb(f1, f2, hsl.x + (1.0 / 3.0));\nrgb.g = hue_to_rgb(f1, f2, hsl.x);\nrgb.b = hue_to_rgb(f1, f2, hsl.x - (1.0 / 3.0));\n}\nreturn rgb;\n}\nvoid main(void)\n{\nvec4 front = texture2D(samplerFront, vTex);\nvec3 rgb = rgb_to_hsl(front.rgb) + vec3((huerotate > 0.5 ? huerotate - 1.0 : huerotate), 0, (lumadjust - 1.0) * front.a);\nrgb.y *= satadjust;\nrgb = hsl_to_rgb(rgb);\ngl_FragColor = vec4(rgb, front.a);\n}",
+	glslWebGL2: "",
+	wgsl: "%%SAMPLERFRONT_BINDING%% var samplerFront : sampler;\n%%TEXTUREFRONT_BINDING%% var textureFront : texture_2d<f32>;\nstruct ShaderParams {\nhuerotate : f32,\nsatadjust : f32,\nlumadjust : f32\n};\n%%SHADERPARAMS_BINDING%% var<uniform> shaderParams : ShaderParams;\n%%C3_UTILITY_FUNCTIONS%%\n%%FRAGMENTINPUT_STRUCT%%\n%%FRAGMENTOUTPUT_STRUCT%%\n@fragment\nfn main(input : FragmentInput) -> FragmentOutput\n{\nvar front : vec4<f32> = textureSample(textureFront, samplerFront, input.fragUV);\nvar huerotate : f32 = shaderParams.huerotate;\nif (huerotate > 0.5)\n{\nhuerotate = huerotate - 1.0;\n}\nvar rgb : vec3<f32> = c3_RGBtoHSL(front.rgb) + vec3<f32>(huerotate, 0.0, (shaderParams.lumadjust - 1.0) * front.a);\nrgb.y = rgb.y * shaderParams.satadjust;\nrgb = c3_HSLtoRGB(rgb);\nvar output : FragmentOutput;\noutput.color = vec4<f32>(rgb, front.a);\nreturn output;\n}",
+	blendsBackground: false,
+	usesDepth: false,
+	extendBoxHorizontal: 0,
+	extendBoxVertical: 0,
+	crossSampling: false,
+	mustPreDraw: false,
+	preservesOpaqueness: true,
+	animated: false,
+	parameters: [["huerotate",0,"percent"],["satadjust",0,"percent"],["lumadjust",0,"percent"]]
+};
 self["C3_Shaders"]["contrast"] = {
 	glsl: "varying mediump vec2 vTex;\nuniform lowp sampler2D samplerFront;\nuniform lowp float contrast;\nvoid main(void)\n{\nlowp vec4 front = texture2D(samplerFront, vTex);\nlowp float a = front.a;\nif (a != 0.0)\nfront.rgb /= front.a;\nfront.rgb = (front.rgb - vec3(0.5)) * contrast + vec3(0.5);\nfront.rgb *= a;\ngl_FragColor = front;\n}",
 	glslWebGL2: "",
@@ -3779,6 +3807,62 @@ self["C3_Shaders"]["contrast"] = {
 	preservesOpaqueness: true,
 	animated: false,
 	parameters: [["contrast",0,"percent"]]
+};
+self["C3_Shaders"]["blurvertical"] = {
+	glsl: "varying mediump vec2 vTex;\nuniform mediump sampler2D samplerFront;\nuniform mediump vec2 pixelSize;\nuniform mediump float intensity;\nvoid main(void)\n{\nmediump vec4 sum = vec4(0.0);\nmediump float pixelHeight = pixelSize.y;\nmediump float halfPixelHeight = pixelHeight / 2.0;\nsum += texture2D(samplerFront, vTex - vec2(0.0, pixelHeight * 7.0 + halfPixelHeight)) * 0.06;\nsum += texture2D(samplerFront, vTex - vec2(0.0, pixelHeight * 5.0 + halfPixelHeight)) * 0.10;\nsum += texture2D(samplerFront, vTex - vec2(0.0, pixelHeight * 3.0 + halfPixelHeight)) * 0.13;\nsum += texture2D(samplerFront, vTex - vec2(0.0, pixelHeight * 1.0 + halfPixelHeight)) * 0.16;\nmediump vec4 front = texture2D(samplerFront, vTex);\nsum += front * 0.10;\nsum += texture2D(samplerFront, vTex + vec2(0.0, pixelHeight * 1.0 + halfPixelHeight)) * 0.16;\nsum += texture2D(samplerFront, vTex + vec2(0.0, pixelHeight * 3.0 + halfPixelHeight)) * 0.13;\nsum += texture2D(samplerFront, vTex + vec2(0.0, pixelHeight * 5.0 + halfPixelHeight)) * 0.10;\nsum += texture2D(samplerFront, vTex + vec2(0.0, pixelHeight * 7.0 + halfPixelHeight)) * 0.06;\ngl_FragColor = mix(front, sum, intensity);\n}",
+	glslWebGL2: "",
+	wgsl: "%%SAMPLERFRONT_BINDING%% var samplerFront : sampler;\n%%TEXTUREFRONT_BINDING%% var textureFront : texture_2d<f32>;\nstruct ShaderParams {\nintensity : f32\n};\n%%SHADERPARAMS_BINDING%% var<uniform> shaderParams : ShaderParams;\n%%C3_UTILITY_FUNCTIONS%%\n%%FRAGMENTINPUT_STRUCT%%\n%%FRAGMENTOUTPUT_STRUCT%%\n@fragment\nfn main(input : FragmentInput) -> FragmentOutput\n{\nvar pixelHeight : f32 = c3_getPixelSize(textureFront).y;\nvar front : vec4<f32> = textureSample(textureFront, samplerFront, input.fragUV);\nvar sum : vec4<f32> =\ntextureSample(textureFront, samplerFront, input.fragUV - vec2<f32>(0.0, pixelHeight * 7.5)) * 0.06 +\ntextureSample(textureFront, samplerFront, input.fragUV - vec2<f32>(0.0, pixelHeight * 5.5)) * 0.10 +\ntextureSample(textureFront, samplerFront, input.fragUV - vec2<f32>(0.0, pixelHeight * 3.5)) * 0.13 +\ntextureSample(textureFront, samplerFront, input.fragUV - vec2<f32>(0.0, pixelHeight * 1.5)) * 0.16 +\nfront * 0.10 +\ntextureSample(textureFront, samplerFront, input.fragUV + vec2<f32>(0.0, pixelHeight * 1.5)) * 0.16 +\ntextureSample(textureFront, samplerFront, input.fragUV + vec2<f32>(0.0, pixelHeight * 3.5)) * 0.13 +\ntextureSample(textureFront, samplerFront, input.fragUV + vec2<f32>(0.0, pixelHeight * 5.5)) * 0.10 +\ntextureSample(textureFront, samplerFront, input.fragUV + vec2<f32>(0.0, pixelHeight * 7.5)) * 0.06;\nvar output : FragmentOutput;\noutput.color = mix(front, sum, shaderParams.intensity);\nreturn output;\n}",
+	blendsBackground: false,
+	usesDepth: false,
+	extendBoxHorizontal: 0,
+	extendBoxVertical: 8,
+	crossSampling: false,
+	mustPreDraw: false,
+	preservesOpaqueness: false,
+	animated: false,
+	parameters: [["intensity",0,"percent"]]
+};
+self["C3_Shaders"]["blacknwhite"] = {
+	glsl: "varying mediump vec2 vTex;\nuniform lowp sampler2D samplerFront;\nuniform lowp float threshold;\nvoid main(void)\n{\nlowp vec4 front = texture2D(samplerFront, vTex);\nlowp float a = front.a;\nlowp float gray = front.r * 0.299 + front.g * 0.587 + front.b * 0.114;\nif (a != 0.0)\ngray /= a;\nif (gray < threshold)\ngl_FragColor = vec4(0.0, 0.0, 0.0, a);\nelse\ngl_FragColor = vec4(a, a, a, a);\n}",
+	glslWebGL2: "",
+	wgsl: "%%SAMPLERFRONT_BINDING%% var samplerFront : sampler;\n%%TEXTUREFRONT_BINDING%% var textureFront : texture_2d<f32>;\nstruct ShaderParams {\nthreshold : f32\n};\n%%SHADERPARAMS_BINDING%% var<uniform> shaderParams : ShaderParams;\n%%C3_UTILITY_FUNCTIONS%%\n%%FRAGMENTINPUT_STRUCT%%\n%%FRAGMENTOUTPUT_STRUCT%%\n@fragment\nfn main(input : FragmentInput) -> FragmentOutput\n{\nvar front : vec4<f32> = textureSample(textureFront, samplerFront, input.fragUV);\nvar a : f32 = front.a;\nvar gray : f32 = c3_grayscale(front.rgb);\nif (a != 0.0)\n{\ngray /= a;\n}\nvar output : FragmentOutput;\noutput.color = select(vec4<f32>(a, a, a, a), vec4<f32>(0.0, 0.0, 0.0, a), gray < shaderParams.threshold);\nreturn output;\n}",
+	blendsBackground: false,
+	usesDepth: false,
+	extendBoxHorizontal: 0,
+	extendBoxVertical: 0,
+	crossSampling: false,
+	mustPreDraw: false,
+	preservesOpaqueness: true,
+	animated: false,
+	parameters: [["threshold",0,"percent"]]
+};
+self["C3_Shaders"]["glowvertical"] = {
+	glsl: "varying mediump vec2 vTex;\nuniform mediump sampler2D samplerFront;\nuniform mediump vec2 pixelSize;\nuniform mediump float intensity;\nvoid main(void)\n{\nmediump vec4 sum = vec4(0.0);\nmediump float pixelHeight = pixelSize.y;\nmediump float halfPixelHeight = pixelHeight / 2.0;\nsum += texture2D(samplerFront, vTex - vec2(0.0, pixelHeight * 7.0 + halfPixelHeight)) * 0.06;\nsum += texture2D(samplerFront, vTex - vec2(0.0, pixelHeight * 5.0 + halfPixelHeight)) * 0.10;\nsum += texture2D(samplerFront, vTex - vec2(0.0, pixelHeight * 3.0 + halfPixelHeight)) * 0.13;\nsum += texture2D(samplerFront, vTex - vec2(0.0, pixelHeight * 1.0 + halfPixelHeight)) * 0.16;\nmediump vec4 front = texture2D(samplerFront, vTex);\nsum += front * 0.10;\nsum += texture2D(samplerFront, vTex + vec2(0.0, pixelHeight * 1.0 + halfPixelHeight)) * 0.16;\nsum += texture2D(samplerFront, vTex + vec2(0.0, pixelHeight * 3.0 + halfPixelHeight)) * 0.13;\nsum += texture2D(samplerFront, vTex + vec2(0.0, pixelHeight * 5.0 + halfPixelHeight)) * 0.10;\nsum += texture2D(samplerFront, vTex + vec2(0.0, pixelHeight * 7.0 + halfPixelHeight)) * 0.06;\ngl_FragColor = mix(front, max(front, sum), intensity);\n}",
+	glslWebGL2: "",
+	wgsl: "%%SAMPLERFRONT_BINDING%% var samplerFront : sampler;\n%%TEXTUREFRONT_BINDING%% var textureFront : texture_2d<f32>;\nstruct ShaderParams {\nintensity : f32\n};\n%%SHADERPARAMS_BINDING%% var<uniform> shaderParams : ShaderParams;\n%%C3_UTILITY_FUNCTIONS%%\n%%FRAGMENTINPUT_STRUCT%%\n%%FRAGMENTOUTPUT_STRUCT%%\n@fragment\nfn main(input : FragmentInput) -> FragmentOutput\n{\nvar pixelHeight : f32 = c3_getPixelSize(textureFront).y;\nvar front : vec4<f32> = textureSample(textureFront, samplerFront, input.fragUV);\nvar sum : vec4<f32> =\ntextureSample(textureFront, samplerFront, input.fragUV - vec2<f32>(0.0, pixelHeight * 7.5)) * 0.06 +\ntextureSample(textureFront, samplerFront, input.fragUV - vec2<f32>(0.0, pixelHeight * 5.5)) * 0.10 +\ntextureSample(textureFront, samplerFront, input.fragUV - vec2<f32>(0.0, pixelHeight * 3.5)) * 0.13 +\ntextureSample(textureFront, samplerFront, input.fragUV - vec2<f32>(0.0, pixelHeight * 1.5)) * 0.16 +\nfront * 0.10 +\ntextureSample(textureFront, samplerFront, input.fragUV + vec2<f32>(0.0, pixelHeight * 1.5)) * 0.16 +\ntextureSample(textureFront, samplerFront, input.fragUV + vec2<f32>(0.0, pixelHeight * 3.5)) * 0.13 +\ntextureSample(textureFront, samplerFront, input.fragUV + vec2<f32>(0.0, pixelHeight * 5.5)) * 0.10 +\ntextureSample(textureFront, samplerFront, input.fragUV + vec2<f32>(0.0, pixelHeight * 7.5)) * 0.06;\nvar output : FragmentOutput;\noutput.color = mix(front, max(front, sum), shaderParams.intensity);\nreturn output;\n}",
+	blendsBackground: false,
+	usesDepth: false,
+	extendBoxHorizontal: 0,
+	extendBoxVertical: 8,
+	crossSampling: false,
+	mustPreDraw: false,
+	preservesOpaqueness: false,
+	animated: false,
+	parameters: [["intensity",0,"percent"]]
+};
+self["C3_Shaders"]["highlightshadow"] = {
+	glsl: "varying mediump vec2 vTex;\nuniform lowp sampler2D samplerFront;\nuniform lowp float shadows;\nuniform lowp float highlights;\nconst mediump vec3 luminanceWeighting = vec3(0.3, 0.3, 0.3);\nvoid main(void)\n{\nlowp vec4 front = texture2D(samplerFront, vTex);\nmediump float luminance = dot(front.rgb, luminanceWeighting);\nmediump float shadow = clamp((pow(luminance, 1.0 / (shadows + 1.0)) + (-0.76) * pow(luminance, 2.0 / (shadows + 1.0))) - luminance, 0.0, 1.0);\nmediump float highlight = clamp((1.0 - (pow(1.0 - luminance, 1.0 / (2.0 - highlights)) + (-0.8) * pow(1.0 - luminance, 2.0 / (2.0 - highlights)))) - luminance, -1.0, 0.0);\nlowp vec3 result = vec3(0.0, 0.0, 0.0) + ((luminance + shadow + highlight) - 0.0) * ((front.rgb - vec3(0.0, 0.0, 0.0)) / (luminance - 0.0));\ngl_FragColor = vec4(result.rgb, front.a);\n}",
+	glslWebGL2: "",
+	wgsl: "%%SAMPLERFRONT_BINDING%% var samplerFront : sampler;\n%%TEXTUREFRONT_BINDING%% var textureFront : texture_2d<f32>;\nstruct ShaderParams {\nshadows : f32,\nhighlights : f32\n};\n%%SHADERPARAMS_BINDING%% var<uniform> shaderParams : ShaderParams;\n%%FRAGMENTINPUT_STRUCT%%\n%%FRAGMENTOUTPUT_STRUCT%%\nconst luminanceWeighting : vec3<f32> = vec3<f32>(0.3, 0.3, 0.3);\n@fragment\nfn main(input : FragmentInput) -> FragmentOutput\n{\nvar front : vec4<f32> = textureSample(textureFront, samplerFront, input.fragUV);\nvar luminance : f32 = dot(front.rgb, luminanceWeighting);\nvar shadow : f32 = clamp((pow(luminance, 1.0 / (shaderParams.shadows + 1.0)) + (-0.76) * pow(luminance, 2.0 / (shaderParams.shadows + 1.0))) - luminance, 0.0, 1.0);\nvar highlight : f32 = clamp((1.0 - (pow(1.0 - luminance, 1.0 / (2.0 - shaderParams.highlights)) + (-0.8) * pow(1.0 - luminance, 2.0 / (2.0 - shaderParams.highlights)))) - luminance, -1.0, 0.0);\nvar result : vec3<f32> = vec3<f32>(0.0) + (luminance + shadow + highlight) * (front.rgb / luminance);\nvar output : FragmentOutput;\noutput.color = vec4<f32>(result, front.a);\nreturn output;\n}",
+	blendsBackground: false,
+	usesDepth: false,
+	extendBoxHorizontal: 0,
+	extendBoxVertical: 0,
+	crossSampling: false,
+	mustPreDraw: false,
+	preservesOpaqueness: true,
+	animated: false,
+	parameters: [["shadows",0,"percent"],["highlights",0,"percent"]]
 };
 
 }
@@ -4225,12 +4309,39 @@ lastTapTime=-1E4;return"double-tap"}else{lastTapX=this._x;lastTapY=this._y;lastT
 }
 
 {
+'use strict';{const C3=self.C3;const DOM_COMPONENT_ID="progress-bar";C3.Plugins.progressbar=class ProgressBarPlugin extends C3.SDKDOMPluginBase{constructor(opts){super(opts,DOM_COMPONENT_ID);this.AddElementMessageHandler("click",(sdkInst,e)=>sdkInst._OnClick(e))}Release(){super.Release()}}}{const C3=self.C3;C3.Plugins.progressbar.Type=class ProgressBarType extends C3.SDKTypeBase{constructor(objectClass){super(objectClass)}Release(){super.Release()}OnCreate(){}}}
+{const C3=self.C3;const C3X=self.C3X;const VALUE=0;const MAXIMUM=1;const TOOLTIP=2;const INITIALLY_VISIBLE=3;const ID=4;const CLASS_NAME=5;const DOM_COMPONENT_ID="progress-bar";C3.Plugins.progressbar.Instance=class ProgressBarInstance extends C3.SDKDOMInstanceBase{constructor(inst,properties){super(inst,DOM_COMPONENT_ID);this._value=0;this._max=100;this._title="";this._id="";this._className="";if(properties){this._value=properties[VALUE];this._max=properties[MAXIMUM];this._title=properties[TOOLTIP];
+this.GetWorldInfo().SetVisible(properties[INITIALLY_VISIBLE]);this._id=properties[ID];this._className=properties[CLASS_NAME]}this.CreateElement({"id":this._id,"className":this._className})}Release(){super.Release()}GetElementState(){return{"value":this._value,"max":this._max,"title":this._title}}async _OnClick(e){this.DispatchScriptEvent("click");await this.TriggerAsync(C3.Plugins.progressbar.Cnds.OnClicked)}_SetTooltip(title){if(this._title===title)return;this._title=title;this.UpdateElementState()}_GetTooltip(){return this._title}_SetProgress(x){if(this._value===
+x)return;this._value=x;this.UpdateElementState()}_GetProgress(){return this._value}_SetMaximum(x){if(this._max===x)return;this._max=x;this.UpdateElementState()}_GetMaximum(){return this._max}_SetIndeterminate(){this._max=0;this._value=0;this.UpdateElementState()}Draw(renderer){}SaveToJson(){return{"v":this._value,"m":this._max,"t":this._title,"id":this._id}}LoadFromJson(o){this._value=o["v"];this._max=o["m"];this._title=o["t"];this._id=o["id"];this.UpdateElementState()}GetPropertyValueByIndex(index){switch(index){case VALUE:return this._GetProgress();
+case MAXIMUM:return this._GetMaximum();case TOOLTIP:return this._GetTooltip()}}SetPropertyValueByIndex(index,value){switch(index){case VALUE:this._SetProgress(value);break;case MAXIMUM:this._SetMaximum(value);break;case TOOLTIP:this._SetTooltip(value);break}}GetDebuggerProperties(){const prefix="plugins.progressbar";return[{title:prefix+".name",properties:[{name:prefix+".properties.value.name",value:this._GetProgress(),onedit:v=>this._SetProgress(v)},{name:prefix+".properties.maximum.name",value:this._GetMaximum(),
+onedit:v=>this._SetMaximum(v)}]}]}GetScriptInterfaceClass(){return self.IProgressBarInstance}};const map=new WeakMap;self.IProgressBarInstance=class IProgressBarInstance extends self.IDOMInstance{constructor(){super();map.set(this,self.IInstance._GetInitInst().GetSdkInstance())}set progress(v){C3X.RequireFiniteNumber(v);map.get(this)._SetProgress(v)}get progress(){return map.get(this)._GetProgress()}set maximum(v){C3X.RequireFiniteNumber(v);map.get(this)._SetMaximum(v)}get maximum(){return map.get(this)._GetMaximum()}set tooltip(t){C3X.RequireString(t);
+map.get(this)._SetTooltip(t)}get tooltip(){return map.get(this)._GetTooltip()}setIndeterminate(){map.get(this)._SetIndeterminate()}}}{const C3=self.C3;C3.Plugins.progressbar.Cnds={OnClicked(){return true},CompareProgress(cmp,x){return C3.compare(this._GetProgress(),cmp,x)}}}{const C3=self.C3;C3.Plugins.progressbar.Acts={SetTooltip(title){this._SetTooltip(title)},SetProgress(x){this._SetProgress(x)},SetMaximum(x){this._SetMaximum(x)},SetIndeterminate(){this._SetIndeterminate()}}}
+{const C3=self.C3;C3.Plugins.progressbar.Exps={Progress(){return this._GetProgress()},Maximum(){return this._GetMaximum()}}};
+
+}
+
+{
 'use strict';{const C3=self.C3;C3.Behaviors.solid=class SolidBehavior extends C3.SDKBehaviorBase{constructor(opts){super(opts)}Release(){super.Release()}}}{const C3=self.C3;C3.Behaviors.solid.Type=class SolidType extends C3.SDKBehaviorTypeBase{constructor(behaviorType){super(behaviorType)}Release(){super.Release()}OnCreate(){}}}
 {const C3=self.C3;const C3X=self.C3X;const IBehaviorInstance=self.IBehaviorInstance;const ENABLE=0;const TAGS=1;const EMPTY_SET=new Set;C3.Behaviors.solid.Instance=class SolidInstance extends C3.SDKBehaviorInstanceBase{constructor(behInst,properties){super(behInst);this.SetEnabled(true);if(properties){this.SetEnabled(properties[ENABLE]);this.SetTags(properties[TAGS])}}Release(){super.Release()}SetEnabled(e){this._inst._SetSolidEnabled(!!e)}IsEnabled(){return this._inst._IsSolidEnabled()}SetTags(tagList){const savedDataMap=
 this._inst.GetSavedDataMap();if(!tagList.trim()){savedDataMap.delete("solidTags");return}let solidTags=savedDataMap.get("solidTags");if(!solidTags){solidTags=new Set;savedDataMap.set("solidTags",solidTags)}solidTags.clear();for(const tag of tagList.split(" "))if(tag)solidTags.add(tag.toLowerCase())}GetTags(){return this._inst.GetSavedDataMap().get("solidTags")||EMPTY_SET}_GetTagsString(){return[...this.GetTags()].join(" ")}SaveToJson(){return{"e":this.IsEnabled()}}LoadFromJson(o){this.SetEnabled(o["e"])}GetPropertyValueByIndex(index){switch(index){case ENABLE:return this.IsEnabled()}}SetPropertyValueByIndex(index,
 value){switch(index){case ENABLE:this.SetEnabled(value);break}}GetDebuggerProperties(){return[{title:"$"+this.GetBehaviorType().GetName(),properties:[{name:"behaviors.solid.properties.enabled.name",value:this.IsEnabled(),onedit:v=>this.SetEnabled(v)},{name:"behaviors.solid.properties.tags.name",value:this._GetTagsString(),onedit:v=>this.SetTags(v)}]}]}GetScriptInterfaceClass(){return self.ISolidBehaviorInstance}};const map=new WeakMap;self.ISolidBehaviorInstance=class ISolidBehaviorInstance extends IBehaviorInstance{constructor(){super();
 map.set(this,IBehaviorInstance._GetInitInst().GetSdkInstance())}set isEnabled(e){map.get(this).SetEnabled(!!e)}get isEnabled(){return map.get(this).IsEnabled()}set tags(str){C3X.RequireString(str);map.get(this).SetTags(str)}get tags(){return map.get(this)._GetTagsString()}}}{const C3=self.C3;C3.Behaviors.solid.Cnds={IsEnabled(){return this.IsEnabled()}}}{const C3=self.C3;C3.Behaviors.solid.Acts={SetEnabled(e){this.SetEnabled(e)},SetTags(tagList){this.SetTags(tagList)}}}
 {const C3=self.C3;C3.Behaviors.solid.Exps={}};
+
+}
+
+{
+'use strict';{const C3=self.C3;C3.Behaviors.Anchor=class AnchorBehavior extends C3.SDKBehaviorBase{constructor(opts){super(opts)}Release(){super.Release()}}}{const C3=self.C3;C3.Behaviors.Anchor.Type=class AnchorType extends C3.SDKBehaviorTypeBase{constructor(behaviorType){super(behaviorType)}Release(){super.Release()}OnCreate(){}}}
+{const C3=self.C3;const C3X=self.C3X;const IBehaviorInstance=self.IBehaviorInstance;const ANCHOR_LEFT=0;const ANCHOR_TOP=1;const ANCHOR_RIGHT=2;const ANCHOR_BOTTOM=3;const ENABLE=4;C3.Behaviors.Anchor.Instance=class AnchorInstance extends C3.SDKBehaviorInstanceBase{constructor(behInst,properties){super(behInst);this._anchorLeft=2;this._anchorTop=2;this._anchorRight=0;this._anchorBottom=0;this._isEnabled=true;const bbox=this._inst.GetWorldInfo().GetBoundingBox();this._xLeft=bbox.getLeft();this._yTop=
+bbox.getTop();this._xRight=this._runtime.GetOriginalViewportWidth()-bbox.getLeft();this._yBottom=this._runtime.GetOriginalViewportHeight()-bbox.getTop();this._rDiff=this._runtime.GetOriginalViewportWidth()-bbox.getRight();this._bDiff=this._runtime.GetOriginalViewportHeight()-bbox.getBottom();if(properties){this._anchorLeft=properties[ANCHOR_LEFT];this._anchorTop=properties[ANCHOR_TOP];this._anchorRight=properties[ANCHOR_RIGHT];this._anchorBottom=properties[ANCHOR_BOTTOM];this._isEnabled=!!properties[ENABLE]}const rt=
+this._runtime.Dispatcher();this._disposables=new C3.CompositeDisposable(C3.Disposable.From(rt,"layoutchange",()=>this._OnLayoutChange()));if(this._isEnabled)this._StartTicking()}Release(){super.Release()}SaveToJson(){return{"xl":this._xLeft,"yt":this._yTop,"xr":this._xRight,"yb":this._yBottom,"rd":this._rDiff,"bd":this._bDiff,"al":this._anchorLeft,"at":this._anchorTop,"ar":this._anchorRight,"ab":this._anchorBottom,"e":this._isEnabled}}LoadFromJson(o){this._xLeft=o["xl"];this._yTop=o["yt"];this._xRight=
+o["xr"];this._yBottom=o["yb"];this._rDiff=o["rd"];this._bDiff=o["bd"];this._anchorLeft=o["al"];this._anchorTop=o["at"];this._anchorRight=o["ar"];this._anchorBottom=o["ab"];this._isEnabled=o["e"];if(this._isEnabled)this._StartTicking();else this._StopTicking()}_SetEnabled(e){if(this._isEnabled&&!e){this._isEnabled=false;this._StopTicking()}else if(!this._isEnabled&&e){const bbox=this._inst.GetWorldInfo().GetBoundingBox();this._xLeft=bbox.getLeft();this._yTop=bbox.getTop();this._xRight=this._runtime.GetOriginalViewportWidth()-
+bbox.getLeft();this._yBottom=this._runtime.GetOriginalViewportHeight()-bbox.getTop();this._rDiff=this._runtime.GetOriginalViewportWidth()-bbox.getRight();this._bDiff=this._runtime.GetOriginalViewportHeight()-bbox.getBottom();this._isEnabled=true;this._StartTicking()}}_IsEnabled(){return this._isEnabled}_UpdatePosition(){if(!this._isEnabled)return;const wi=this._inst.GetWorldInfo();const viewport=wi.GetLayer().GetViewport();if(this._anchorLeft===0){const n=viewport.getLeft()+this._xLeft-wi.GetBoundingBox().getLeft();
+if(n!==0){wi.OffsetX(n);wi.SetBboxChanged()}}else if(this._anchorLeft===1){const n=viewport.getRight()-this._xRight-wi.GetBoundingBox().getLeft();if(n!==0){wi.OffsetX(n);wi.SetBboxChanged()}}if(this._anchorTop===0){const n=viewport.getTop()+this._yTop-wi.GetBoundingBox().getTop();if(n!==0){wi.OffsetY(n);wi.SetBboxChanged()}}else if(this._anchorTop===1){const n=viewport.getBottom()-this._yBottom-wi.GetBoundingBox().getTop();if(n!==0){wi.OffsetY(n);wi.SetBboxChanged()}}if(this._anchorRight===1){const n=
+viewport.getRight()-this._rDiff-wi.GetBoundingBox().getRight();if(n!==0){wi.OffsetX(wi.GetOriginX()*n);wi.SetWidth(Math.max(wi.GetWidth()+n),0);wi.SetBboxChanged();this._rDiff=viewport.getRight()-wi.GetBoundingBox().getRight()}}if(this._anchorBottom===1){const n=viewport.getBottom()-this._bDiff-wi.GetBoundingBox().getBottom();if(n!==0){wi.OffsetY(wi.GetOriginY()*n);wi.SetHeight(Math.max(wi.GetHeight()+n,0));wi.SetBboxChanged();this._bDiff=viewport.getBottom()-wi.GetBoundingBox().getBottom()}}}Tick(){this._UpdatePosition()}_OnLayoutChange(){this._UpdatePosition()}GetPropertyValueByIndex(index){switch(index){case ANCHOR_LEFT:return this._anchorLeft;
+case ANCHOR_TOP:return this._anchorTop;case ANCHOR_RIGHT:return this._anchorRight;case ANCHOR_BOTTOM:return this._anchorBottom;case ENABLE:return this._isEnabled}}SetPropertyValueByIndex(index,value){switch(index){case ANCHOR_LEFT:this._anchorLeft=value;break;case ANCHOR_TOP:this._anchorTop=value;break;case ANCHOR_RIGHT:this._anchorRight=value;break;case ANCHOR_BOTTOM:this._anchorBottom=value;break;case ENABLE:this._isEnabled=!!value;if(this._isEnabled)this._StartTicking();else this._StopTicking();
+break}}GetDebuggerProperties(){const prefix="behaviors.anchor";return[{title:"$"+this.GetBehaviorType().GetName(),properties:[{name:prefix+".properties.enabled.name",value:this._IsEnabled(),onedit:v=>this._SetEnabled(v)}]}]}GetScriptInterfaceClass(){return self.IAnchorBehaviorInstance}};const map=new WeakMap;self.IAnchorBehaviorInstance=class IAnchorBehaviorInstance extends IBehaviorInstance{constructor(){super();map.set(this,IBehaviorInstance._GetInitInst().GetSdkInstance())}get isEnabled(){return map.get(this)._IsEnabled()}set isEnabled(e){map.get(this)._SetEnabled(e)}}}
+{const C3=self.C3;C3.Behaviors.Anchor.Cnds={IsEnabled(){return this._IsEnabled()}}}{const C3=self.C3;C3.Behaviors.Anchor.Acts={SetEnabled(e){this._SetEnabled(e!==0)}}}{const C3=self.C3;C3.Behaviors.Anchor.Exps={}};
 
 }
 
@@ -4449,21 +4560,6 @@ ReflectionY(length){return this._GetRayReflectionY(length)},ReflectionAngle(){re
 }
 
 {
-'use strict';{const C3=self.C3;C3.Behaviors.Anchor=class AnchorBehavior extends C3.SDKBehaviorBase{constructor(opts){super(opts)}Release(){super.Release()}}}{const C3=self.C3;C3.Behaviors.Anchor.Type=class AnchorType extends C3.SDKBehaviorTypeBase{constructor(behaviorType){super(behaviorType)}Release(){super.Release()}OnCreate(){}}}
-{const C3=self.C3;const C3X=self.C3X;const IBehaviorInstance=self.IBehaviorInstance;const ANCHOR_LEFT=0;const ANCHOR_TOP=1;const ANCHOR_RIGHT=2;const ANCHOR_BOTTOM=3;const ENABLE=4;C3.Behaviors.Anchor.Instance=class AnchorInstance extends C3.SDKBehaviorInstanceBase{constructor(behInst,properties){super(behInst);this._anchorLeft=2;this._anchorTop=2;this._anchorRight=0;this._anchorBottom=0;this._isEnabled=true;const bbox=this._inst.GetWorldInfo().GetBoundingBox();this._xLeft=bbox.getLeft();this._yTop=
-bbox.getTop();this._xRight=this._runtime.GetOriginalViewportWidth()-bbox.getLeft();this._yBottom=this._runtime.GetOriginalViewportHeight()-bbox.getTop();this._rDiff=this._runtime.GetOriginalViewportWidth()-bbox.getRight();this._bDiff=this._runtime.GetOriginalViewportHeight()-bbox.getBottom();if(properties){this._anchorLeft=properties[ANCHOR_LEFT];this._anchorTop=properties[ANCHOR_TOP];this._anchorRight=properties[ANCHOR_RIGHT];this._anchorBottom=properties[ANCHOR_BOTTOM];this._isEnabled=!!properties[ENABLE]}const rt=
-this._runtime.Dispatcher();this._disposables=new C3.CompositeDisposable(C3.Disposable.From(rt,"layoutchange",()=>this._OnLayoutChange()));if(this._isEnabled)this._StartTicking()}Release(){super.Release()}SaveToJson(){return{"xl":this._xLeft,"yt":this._yTop,"xr":this._xRight,"yb":this._yBottom,"rd":this._rDiff,"bd":this._bDiff,"al":this._anchorLeft,"at":this._anchorTop,"ar":this._anchorRight,"ab":this._anchorBottom,"e":this._isEnabled}}LoadFromJson(o){this._xLeft=o["xl"];this._yTop=o["yt"];this._xRight=
-o["xr"];this._yBottom=o["yb"];this._rDiff=o["rd"];this._bDiff=o["bd"];this._anchorLeft=o["al"];this._anchorTop=o["at"];this._anchorRight=o["ar"];this._anchorBottom=o["ab"];this._isEnabled=o["e"];if(this._isEnabled)this._StartTicking();else this._StopTicking()}_SetEnabled(e){if(this._isEnabled&&!e){this._isEnabled=false;this._StopTicking()}else if(!this._isEnabled&&e){const bbox=this._inst.GetWorldInfo().GetBoundingBox();this._xLeft=bbox.getLeft();this._yTop=bbox.getTop();this._xRight=this._runtime.GetOriginalViewportWidth()-
-bbox.getLeft();this._yBottom=this._runtime.GetOriginalViewportHeight()-bbox.getTop();this._rDiff=this._runtime.GetOriginalViewportWidth()-bbox.getRight();this._bDiff=this._runtime.GetOriginalViewportHeight()-bbox.getBottom();this._isEnabled=true;this._StartTicking()}}_IsEnabled(){return this._isEnabled}_UpdatePosition(){if(!this._isEnabled)return;const wi=this._inst.GetWorldInfo();const viewport=wi.GetLayer().GetViewport();if(this._anchorLeft===0){const n=viewport.getLeft()+this._xLeft-wi.GetBoundingBox().getLeft();
-if(n!==0){wi.OffsetX(n);wi.SetBboxChanged()}}else if(this._anchorLeft===1){const n=viewport.getRight()-this._xRight-wi.GetBoundingBox().getLeft();if(n!==0){wi.OffsetX(n);wi.SetBboxChanged()}}if(this._anchorTop===0){const n=viewport.getTop()+this._yTop-wi.GetBoundingBox().getTop();if(n!==0){wi.OffsetY(n);wi.SetBboxChanged()}}else if(this._anchorTop===1){const n=viewport.getBottom()-this._yBottom-wi.GetBoundingBox().getTop();if(n!==0){wi.OffsetY(n);wi.SetBboxChanged()}}if(this._anchorRight===1){const n=
-viewport.getRight()-this._rDiff-wi.GetBoundingBox().getRight();if(n!==0){wi.OffsetX(wi.GetOriginX()*n);wi.SetWidth(Math.max(wi.GetWidth()+n),0);wi.SetBboxChanged();this._rDiff=viewport.getRight()-wi.GetBoundingBox().getRight()}}if(this._anchorBottom===1){const n=viewport.getBottom()-this._bDiff-wi.GetBoundingBox().getBottom();if(n!==0){wi.OffsetY(wi.GetOriginY()*n);wi.SetHeight(Math.max(wi.GetHeight()+n,0));wi.SetBboxChanged();this._bDiff=viewport.getBottom()-wi.GetBoundingBox().getBottom()}}}Tick(){this._UpdatePosition()}_OnLayoutChange(){this._UpdatePosition()}GetPropertyValueByIndex(index){switch(index){case ANCHOR_LEFT:return this._anchorLeft;
-case ANCHOR_TOP:return this._anchorTop;case ANCHOR_RIGHT:return this._anchorRight;case ANCHOR_BOTTOM:return this._anchorBottom;case ENABLE:return this._isEnabled}}SetPropertyValueByIndex(index,value){switch(index){case ANCHOR_LEFT:this._anchorLeft=value;break;case ANCHOR_TOP:this._anchorTop=value;break;case ANCHOR_RIGHT:this._anchorRight=value;break;case ANCHOR_BOTTOM:this._anchorBottom=value;break;case ENABLE:this._isEnabled=!!value;if(this._isEnabled)this._StartTicking();else this._StopTicking();
-break}}GetDebuggerProperties(){const prefix="behaviors.anchor";return[{title:"$"+this.GetBehaviorType().GetName(),properties:[{name:prefix+".properties.enabled.name",value:this._IsEnabled(),onedit:v=>this._SetEnabled(v)}]}]}GetScriptInterfaceClass(){return self.IAnchorBehaviorInstance}};const map=new WeakMap;self.IAnchorBehaviorInstance=class IAnchorBehaviorInstance extends IBehaviorInstance{constructor(){super();map.set(this,IBehaviorInstance._GetInitInst().GetSdkInstance())}get isEnabled(){return map.get(this)._IsEnabled()}set isEnabled(e){map.get(this)._SetEnabled(e)}}}
-{const C3=self.C3;C3.Behaviors.Anchor.Cnds={IsEnabled(){return this._IsEnabled()}}}{const C3=self.C3;C3.Behaviors.Anchor.Acts={SetEnabled(e){this._SetEnabled(e!==0)}}}{const C3=self.C3;C3.Behaviors.Anchor.Exps={}};
-
-}
-
-{
 'use strict';{const C3=self.C3;C3.Behaviors.Sin=class SinBehavior extends C3.SDKBehaviorBase{constructor(opts){super(opts)}Release(){super.Release()}}}{const C3=self.C3;C3.Behaviors.Sin.Type=class SinType extends C3.SDKBehaviorTypeBase{constructor(behaviorType){super(behaviorType)}Release(){super.Release()}OnCreate(){}}}
 {const C3=self.C3;const C3X=self.C3X;const IBehaviorInstance=self.IBehaviorInstance;const MOVEMENT=0;const WAVE=1;const PERIOD=2;const PERIOD_RANDOM=3;const PERIOD_OFFSET=4;const PERIOD_OFFSET_RANDOM=5;const MAGNITUDE=6;const MAGNITUDE_RANDOM=7;const ENABLE=8;const HORIZONTAL=0;const VERTICAL=1;const SIZE=2;const WIDTH=3;const HEIGHT=4;const ANGLE=5;const OPACITY=6;const VALUE=7;const FORWARDS_BACKWARDS=8;const ZELEVATION=9;const SINE=0;const TRIANGLE=1;const SAWTOOTH=2;const REVERSE_SAWTOOTH=3;const SQUARE=
 4;const _2pi=2*Math.PI;const _pi_2=Math.PI/2;const _3pi_2=3*Math.PI/2;const MOVEMENT_LOOKUP=[0,1,8,3,4,2,5,6,9,7];C3.Behaviors.Sin.Instance=class SinInstance extends C3.SDKBehaviorInstanceBase{constructor(behInst,properties){super(behInst);this._i=0;this._movement=0;this._wave=0;this._period=0;this._mag=0;this._isEnabled=true;this._basePeriod=0;this._basePeriodOffset=0;this._baseMag=0;this._periodRandom=0;this._periodOffsetRandom=0;this._magnitudeRandom=0;this._initialValue=0;this._initialValue2=
@@ -4552,6 +4648,7 @@ self.C3_GetObjectRefTable = function () {
 		C3.Plugins.Text,
 		C3.Plugins.Sprite,
 		C3.Behaviors.solid,
+		C3.Behaviors.Anchor,
 		C3.Plugins.Keyboard,
 		C3.Plugins.Mouse,
 		C3.Behaviors.scrollto,
@@ -4564,7 +4661,6 @@ self.C3_GetObjectRefTable = function () {
 		C3.Behaviors.Fade,
 		C3.Behaviors.Pathfinding,
 		C3.Behaviors.LOS,
-		C3.Behaviors.Anchor,
 		C3.Behaviors.Sin,
 		C3.Behaviors.Pin,
 		C3.Plugins.Arr,
@@ -4572,79 +4668,114 @@ self.C3_GetObjectRefTable = function () {
 		C3.Behaviors.destroy,
 		C3.Plugins.Button,
 		C3.Plugins.Touch,
-		C3.Plugins.System.Cnds.OnLayoutStart,
+		C3.Plugins.progressbar,
+		C3.Plugins.System.Cnds.CompareVar,
+		C3.Plugins.System.Cnds.CompareBoolVar,
+		C3.Plugins.System.Acts.SetBoolVar,
+		C3.Plugins.Text.Acts.SetText,
+		C3.Plugins.Audio.Acts.FadeVolume,
 		C3.Plugins.System.Acts.Wait,
+		C3.Behaviors.scrollto.Acts.SetEnabled,
+		C3.Plugins.System.Acts.SetLayerVisible,
 		C3.Plugins.Audio.Acts.Play,
+		C3.Plugins.System.Cnds.OnLayoutStart,
 		C3.Plugins.Mouse.Cnds.OnObjectClicked,
 		C3.Plugins.Audio.Acts.StopAll,
 		C3.Plugins.System.Acts.GoToLayout,
-		C3.Plugins.System.Acts.SetBoolVar,
 		C3.Plugins.System.Cnds.Every,
 		C3.Plugins.Text.Acts.ToggleBoolInstanceVar,
+		C3.Plugins.Text.Acts.TypewriterText,
+		C3.Plugins.System.Acts.AddVar,
 		C3.Plugins.Text.Cnds.IsBoolInstanceVarSet,
 		C3.Plugins.Text.Acts.SetFontColor,
-		C3.Plugins.System.Cnds.CompareBoolVar,
-		C3.Plugins.System.Acts.SetLayerVisible,
-		C3.Plugins.Audio.Acts.SetSilent,
-		C3.Behaviors.scrollto.Acts.SetEnabled,
-		C3.Plugins.System.Acts.SetVar,
-		C3.Plugins.Text.Acts.TypewriterText,
-		C3.Plugins.Audio.Acts.Stop,
-		C3.Plugins.Sprite.Acts.SetVisible,
+		C3.Plugins.System.Cnds.EveryTick,
+		C3.Plugins.Sprite.Acts.SetPosToObject,
+		C3.Plugins.Sprite.Acts.MoveToTop,
+		C3.Plugins.Sprite.Acts.SetWidth,
+		C3.Plugins.Text.Cnds.PickByUID,
+		C3.Plugins.Mouse.Cnds.IsOverObject,
+		C3.Plugins.System.Cnds.IsGroupActive,
 		C3.Plugins.Sprite.Acts.SetX,
 		C3.Plugins.Sprite.Acts.SetY,
+		C3.Plugins.System.Acts.SetVar,
 		C3.Plugins.Sprite.Exps.X,
 		C3.Plugins.Sprite.Exps.Y,
-		C3.Plugins.Sprite.Acts.MoveToTop,
+		C3.Plugins.Sprite.Acts.SetVisible,
+		C3.Plugins.Audio.Acts.SetSilent,
+		C3.Plugins.Audio.Acts.Stop,
+		C3.Plugins.Text.Acts.SetVisible,
+		C3.Plugins.TiledBg.Acts.SetVisible,
+		C3.Plugins.Keyboard.Cnds.OnKey,
+		C3.Plugins.Keyboard.Cnds.IsKeyDown,
+		C3.Plugins.System.Acts.SubVar,
+		C3.Behaviors.EightDir.Acts.SetMaxSpeed,
+		C3.Behaviors.EightDir.Acts.SetSpeed,
+		C3.Plugins.Sprite.Acts.Spawn,
+		C3.Plugins.Sprite.Acts.SetAnim,
+		C3.Plugins.Sprite.Acts.SetCollisions,
+		C3.Plugins.progressbar.Acts.SetVisible,
 		C3.Plugins.Mouse.Cnds.OnClick,
 		C3.Plugins.Sprite.Cnds.IsBoolInstanceVarSet,
-		C3.Plugins.System.Cnds.CompareVar,
 		C3.Plugins.Sprite.Acts.SetBoolInstanceVar,
 		C3.Plugins.Audio.Acts.SetPlaybackRate,
-		C3.Plugins.Sprite.Acts.Spawn,
 		C3.Plugins.Audio.Acts.SetPaused,
-		C3.Plugins.Keyboard.Cnds.IsKeyDown,
-		C3.Plugins.Sprite.Acts.SetAnim,
 		C3.Behaviors.EightDir.Acts.SimulateControl,
 		C3.Plugins.Sprite.Acts.SetMirrored,
-		C3.Plugins.System.Cnds.EveryTick,
-		C3.Plugins.Sprite.Acts.SetPos,
-		C3.Plugins.Mouse.Exps.X,
-		C3.Plugins.Mouse.Exps.Y,
-		C3.Plugins.Sprite.Acts.SetTowardPosition,
-		C3.Plugins.Text.Acts.SetText,
-		C3.Plugins.Sprite.Cnds.OnCollision,
-		C3.Behaviors.Fade.Acts.StartFade,
-		C3.Plugins.System.Cnds.IsPreview,
-		C3.Plugins.Audio.Acts.PlayAtObject,
-		C3.Plugins.System.Acts.AddVar,
-		C3.Plugins.System.Exps.random,
-		C3.Plugins.System.Acts.SubVar,
-		C3.Behaviors.EightDir.Acts.SetEnabled,
-		C3.Plugins.Sprite.Cnds.CompareInstanceVar,
-		C3.Plugins.Sprite.Acts.SubInstanceVar,
-		C3.Behaviors.LOS.Cnds.HasLOSToObject,
-		C3.Behaviors.Pathfinding.Acts.Stop,
-		C3.Behaviors.Pathfinding.Acts.SetEnabled,
-		C3.Behaviors.MoveTo.Acts.MoveToObject,
-		C3.Behaviors.LOS.Acts.SetRange,
-		C3.Behaviors.LOS.Exps.Range,
-		C3.Plugins.System.Cnds.Compare,
 		C3.Behaviors.Bullet.Acts.SetSpeed,
 		C3.Behaviors.Bullet.Exps.Speed,
-		C3.Plugins.Text.Acts.SetVisible,
-		C3.Plugins.Audio.Acts.FadeVolume,
-		C3.Plugins.Text.Cnds.OnCreated,
-		C3.Plugins.Keyboard.Cnds.OnKey,
-		C3.Plugins.System.Acts.GoToLayoutByName,
-		C3.Plugins.Sprite.Acts.StopAnim,
-		C3.Plugins.TiledBg.Acts.SetVisible,
-		C3.Behaviors.Pin.Acts.PinByProperties,
-		C3.Behaviors.MoveTo.Acts.SetMaxSpeed,
+		C3.Plugins.System.Cnds.Compare,
+		C3.Plugins.Sprite.Cnds.OnCollision,
+		C3.Plugins.Sprite.Acts.SubInstanceVar,
+		C3.Plugins.Sprite.Acts.SetEffectEnabled,
+		C3.Behaviors.Fade.Acts.StartFade,
+		C3.Plugins.Sprite.Acts.SetPos,
+		C3.Plugins.System.Exps.random,
+		C3.Plugins.Sprite.Acts.SetInstanceVar,
+		C3.Behaviors.EightDir.Acts.SetEnabled,
 		C3.Behaviors.MoveTo.Acts.MoveToPosition,
+		C3.Plugins.Sprite.Cnds.CompareInstanceVar,
+		C3.Behaviors.MoveTo.Acts.SetMaxSpeed,
+		C3.Plugins.Sprite.Acts.SetScale,
+		C3.Plugins.System.Acts.CreateObject,
+		C3.Behaviors.LOS.Acts.SetRange,
+		C3.Behaviors.LOS.Cnds.HasLOSToObject,
+		C3.Plugins.Sprite.Cnds.CompareX,
+		C3.Plugins.Sprite.Acts.SetTowardPosition,
 		C3.Plugins.Sprite.Acts.Destroy,
+		C3.Behaviors.Bullet.Cnds.CompareTravelled,
+		C3.Plugins.Sprite.Acts.AddInstanceVar,
+		C3.Plugins.Sprite.Acts.SetEffectParam,
+		C3.Plugins.Sprite.Cnds.OnDestroyed,
+		C3.Behaviors.solid.Acts.SetEnabled,
+		C3.Behaviors.MoveTo.Acts.SetEnabled,
+		C3.Plugins.TiledBg.Acts.SetOpacity,
+		C3.Plugins.Text.Acts.AppendText,
+		C3.Plugins.Sprite.Acts.MoveToLayer,
+		C3.Plugins.Sprite.Acts.SetSize,
+		C3.Behaviors.LOS.Acts.SetCone,
+		C3.Plugins.Button.Cnds.OnClicked,
+		C3.Behaviors.Flash.Acts.Flash,
+		C3.Behaviors.MoveTo.Acts.SetSpeed,
+		C3.Behaviors.LOS.Exps.Range,
+		C3.Plugins.Sprite.Acts.StopAnim,
+		C3.Behaviors.MoveTo.Acts.Stop,
+		C3.Behaviors.MoveTo.Acts.MoveToObject,
+		C3.Plugins.Mouse.Exps.X,
+		C3.Plugins.Mouse.Exps.Y,
+		C3.Plugins.Sprite.Cnds.IsOverlapping,
+		C3.Plugins.Sprite.Cnds.CompareY,
+		C3.Behaviors.EightDir.Acts.SetVectorX,
+		C3.Behaviors.EightDir.Acts.SetVectorY,
+		C3.Plugins.System.Acts.SetLayoutEffectEnabled,
+		C3.Plugins.System.Acts.SetTimescale,
+		C3.Plugins.Sprite.Cnds.PickByUID,
+		C3.Plugins.System.Acts.SetLayoutEffectParam,
+		C3.Plugins.Text.Cnds.OnCreated,
+		C3.Plugins.System.Acts.GoToLayoutByName,
+		C3.Behaviors.Pin.Acts.PinByProperties,
 		C3.Plugins.Text.Acts.SetHAlign,
-		C3.Plugins.Text.Acts.AppendText
+		C3.Behaviors.MoveTo.Cnds.OnArrived,
+		C3.Plugins.System.Acts.RestartLayout
 	];
 };
 self.C3_JsPropNameTable = [
@@ -4670,6 +4801,7 @@ self.C3_JsPropNameTable = [
 	{home_fireplace_1: 0},
 	{home_river_2: 0},
 	{home_river_5: 0},
+	{Anchor: 0},
 	{bg_story1: 0},
 	{spasi_to_next: 0},
 	{story_text: 0},
@@ -4689,6 +4821,9 @@ self.C3_JsPropNameTable = [
 	{delayAttack: 0},
 	{delayslash: 0},
 	{isDead: 0},
+	{stun: 0},
+	{isEffectBankai: 0},
+	{isRage: 0},
 	{MoveTo: 0},
 	{BoundToLayout: 0},
 	{"8Direction": 0},
@@ -4701,10 +4836,10 @@ self.C3_JsPropNameTable = [
 	{Fade: 0},
 	{slash_sword: 0},
 	{life: 0},
+	{maxHealth: 0},
 	{Pathfinding: 0},
 	{LineOfSight: 0},
 	{map1_monster: 0},
-	{Anchor: 0},
 	{map1_healthvalue: 0},
 	{map1_manavalue: 0},
 	{map1_hungryvalue: 0},
@@ -4785,6 +4920,7 @@ self.C3_JsPropNameTable = [
 	{map1_altar8: 0},
 	{map1_pieceofpaper: 0},
 	{map1_bookbouomeng: 0},
+	{maxHp: 0},
 	{map1_monster2: 0},
 	{map1_magisattack: 0},
 	{map1_countpaper: 0},
@@ -4814,7 +4950,6 @@ self.C3_JsPropNameTable = [
 	{map1_goa2noevent: 0},
 	{map3_stone: 0},
 	{map3_bush: 0},
-	{map3_monster1: 0},
 	{ending1_camera1: 0},
 	{ending1_dialog: 0},
 	{ending1_name: 0},
@@ -4826,21 +4961,123 @@ self.C3_JsPropNameTable = [
 	{map3_trigEnding: 0},
 	{Touch: 0},
 	{map1_manaregen: 0},
+	{shield: 0},
+	{checkpoint_statue: 0},
+	{map1_checkpointObject: 0},
+	{map1_checkpointObject2: 0},
+	{dash1: 0},
+	{dash2: 0},
+	{dash3: 0},
+	{isExplode: 0},
+	{map1_monster3: 0},
+	{map1_explosive: 0},
+	{map1_rangeExplosion: 0},
+	{bankai_slash: 0},
+	{bankai_bg: 0},
+	{bg_story2: 0},
+	{bankai_text1: 0},
+	{bankai_text2: 0},
+	{bankai_text3: 0},
+	{checkpoint_bg: 0},
+	{ProgressBar: 0},
+	{Button: 0},
+	{Button2: 0},
+	{checkpoint_text: 0},
+	{bankai_skill: 0},
+	{bankai_skill2: 0},
+	{bankai_skill3: 0},
+	{bankai_skill4: 0},
+	{slash_sword2: 0},
+	{slash_sword3: 0},
+	{bankai_text4: 0},
+	{health_bar: 0},
+	{healthE_bar1: 0},
+	{healthE_bar2: 0},
+	{healthE_bar3: 0},
+	{healthE_bar4: 0},
+	{isStun: 0},
+	{isAttack: 0},
+	{map1_monster4: 0},
+	{shadowMons4: 0},
+	{map1_partattackenemies2: 0},
+	{healthE_bar5: 0},
+	{healthE_bar6: 0},
+	{ProgressBar2: 0},
+	{Sprite2: 0},
+	{home_text1: 0},
+	{home_text2: 0},
+	{Sprite3: 0},
+	{logo: 0},
+	{map1_goaBouoMeng: 0},
+	{VanishObj: 0},
+	{home_fireplace_2: 0},
+	{map3_trigEnding2: 0},
+	{Sprite4: 0},
+	{hp: 0},
+	{map3_boss: 0},
+	{isFreeze: 0},
+	{orb: 0},
+	{map1_partattackenemies3: 0},
+	{isAnimate: 0},
+	{bossLevel: 0},
+	{Shield: 0},
+	{Xposition: 0},
+	{Yposition: 0},
+	{isEnableHit: 0},
+	{map3_boss2: 0},
+	{map1_magisattack2: 0},
+	{orb_bar: 0},
+	{Sprite5: 0},
+	{Sprite6: 0},
+	{Sprite7: 0},
+	{healthE_bar_boss: 0},
+	{healthE_bar_boss2: 0},
+	{map3_boss3: 0},
+	{spasi_to_next2: 0},
+	{mage: 0},
+	{map1_camera3: 0},
+	{aboutme_prevAndpause: 0},
+	{staminaBar: 0},
+	{isClang: 0},
+	{ultimateBar: 0},
+	{pause: 0},
+	{pause2: 0},
+	{isText: 0},
+	{hasLoading: 0},
+	{isHasPlay: 0},
+	{music: 0},
+	{load: 0},
+	{ShieldBoss: 0},
+	{ultimate: 0},
 	{mana_hero: 0},
 	{hungry_hero: 0},
 	{PremiumChest: 0},
+	{isDef: 0},
 	{modeRpg: 0},
 	{spawnX: 0},
+	{shieldCount: 0},
 	{spawnY: 0},
 	{piecepaper: 0},
+	{Stamina: 0},
+	{isBankai: 0},
 	{isDialog1: 0},
+	{isDash: 0},
 	{volumePaper: 0},
+	{isBoss: 0},
+	{isGiveKnockbackMons1: 0},
 	{maxmana: 0},
 	{maxhp: 0},
+	{isCanSlide: 0},
+	{isPause: 0},
+	{isEventQuickKillBoss: 0},
+	{quickKillBoss: 0},
 	{isEnding: 0},
 	{onStory: 0},
+	{isEventBouoMeng: 0},
 	{health_hero: 0},
-	{textStory: 0}
+	{textStory: 0},
+	{isMoveto: 0},
+	{isShowEnding: 0}
 ];
 }
 
@@ -4941,20 +5178,48 @@ function or(l, r)
 }
 
 self.C3_ExpressionFuncs = [
-		() => 1,
-		() => 10,
-		() => 0,
+		() => 100,
+		() => "100 %",
 		() => "",
+		() => -20,
+		() => 3,
+		() => 1,
+		() => 5,
+		() => 20,
+		() => -10,
+		() => 0,
+		() => 2,
+		() => "Loading . . .",
+		() => 0.3,
 		() => -717716684653567,
-		() => -624835619424255,
+		() => -633357354664959,
+		p => {
+			const v0 = p._GetNode(0).GetVar();
+			return () => and(v0.GetValue(), " %");
+		},
+		p => {
+			const v0 = p._GetNode(0).GetVar();
+			return () => (1200 * (v0.GetValue() / 100));
+		},
+		() => 8,
+		() => -717750023016447,
+		() => "story",
+		() => 721,
+		() => 8575,
+		p => {
+			const n0 = p._GetNode(0);
+			return () => n0.ExpObject();
+		},
+		() => "Checkpoint",
 		() => "Layer 1",
+		() => "Layer 2",
 		() => 0.8,
+		() => 10,
 		() => "Dian Meng Tak sadarkan DIri Akibat derasnya Arus sungai yang mengalir, tak berapa lama . . .",
 		p => {
 			const v0 = p._GetNode(0).GetVar();
 			return () => v0.GetValue();
 		},
-		() => 3,
 		() => 3.5,
 		() => 15,
 		() => "Uhuk uhuk.. uhukk uhukk.",
@@ -4966,22 +5231,187 @@ self.C3_ExpressionFuncs = [
 		() => "Welcome to NorthemLand",
 		() => 1.5,
 		() => -8,
-		() => 100,
-		() => 721,
-		() => 8575,
-		() => 5,
-		p => {
-			const n0 = p._GetNode(0);
-			return () => n0.ExpObject();
-		},
+		() => "Controller",
+		() => "dash",
+		() => 40,
+		() => 550,
+		() => "top",
+		() => 0.06,
+		() => 0.04,
+		() => 150,
+		() => "left",
+		() => "bottom",
+		() => "right",
 		() => "slash",
 		() => 30,
 		() => 0.09,
 		() => 0.4,
-		() => "top",
-		() => "left",
-		() => "right",
-		() => "bottom",
+		p => {
+			const n0 = p._GetNode(0);
+			return () => (n0.ExpBehavior() + 200);
+		},
+		() => "bullet",
+		() => "gameplay",
+		() => "Boss",
+		p => {
+			const n0 = p._GetNode(0);
+			const n1 = p._GetNode(1);
+			const n2 = p._GetNode(2);
+			const n3 = p._GetNode(3);
+			return () => C3.distanceTo(n0.ExpObject(), n1.ExpObject(), n2.ExpObject(), n3.ExpObject());
+		},
+		() => 90,
+		() => "Untuk mengalahkan Boss terakhir kmu diharuskan utnuk menghancurkan 4 buah crystal yang berada di sekitar area map. gunkanan taktik yang strategis agar boss tdk dapat memberkan efek heal kepada crystal",
+		() => 6,
+		() => "Untuk menghancurkan sebuah crystal anda harus membuka shield pada crystal dengan memberikan distance attack(spike Ice).",
+		() => "Setelah Anda menghancurkan semua Crystal kini anda dapat membunuh Boss dengan menyerangnya langsung sebab ia tak lagi memiliki shield.\n\n\ngoodLuck.. I just can give you a power",
+		() => 1000,
+		() => 25,
+		() => "hit",
+		() => "BlackWhite",
+		() => 0.2,
+		p => {
+			const n0 = p._GetNode(0);
+			const f1 = p._GetNode(1).GetBoundMethod();
+			return () => (n0.ExpObject() + f1((-150), 150));
+		},
+		p => {
+			const v0 = p._GetNode(0).GetVar();
+			return () => (500 * (v0.GetValue() / 100));
+		},
+		() => 20612,
+		() => 2959,
+		() => "Game Over",
+		() => "Please Be Patient, you will wake up again",
+		p => {
+			const n0 = p._GetNode(0);
+			const f1 = p._GetNode(1).GetBoundMethod();
+			return () => (n0.ExpObject() + f1((-300), 300));
+		},
+		() => 300,
+		p => {
+			const n0 = p._GetNode(0);
+			const f1 = p._GetNode(1).GetBoundMethod();
+			return () => (n0.ExpObject() + f1((-100), 100));
+		},
+		() => 13,
+		() => 600,
+		() => 4,
+		() => 3000,
+		() => 750,
+		() => "attack",
+		() => 0.6,
+		() => 500,
+		() => 4000,
+		() => "explode",
+		p => {
+			const n0 = p._GetNode(0);
+			return () => (70 * (n0.ExpInstVar() / 30));
+		},
+		() => 0.1,
+		p => {
+			const f0 = p._GetNode(0).GetBoundMethod();
+			return () => Math.floor(f0(1, 10));
+		},
+		() => "BlurVertical",
+		() => 70,
+		() => "ost1",
+		() => "attract",
+		() => "idle",
+		() => "stun",
+		() => "dead",
+		() => "function",
+		() => "ultimate1",
+		() => 50,
+		() => 60,
+		() => 80,
+		() => "bankai",
+		() => "ばん",
+		() => "かい",
+		() => "B a n k a i",
+		() => "I K U Y O",
+		() => "K Y O T O",
+		() => "S U G T S U",
+		() => -100,
+		() => -5,
+		() => "EffectBankai",
+		() => "effectBankai",
+		() => 1.2,
+		() => "Taimugēto ( タイムゲート ) ",
+		() => "idle_freeze",
+		() => "| Gerbang waktu",
+		() => "Ishi no kūdō ( 石の空洞 ) ",
+		() => "AdjustHSL",
+		() => "| hampaan batu",
+		() => "ultimate2",
+		p => {
+			const f0 = p._GetNode(0).GetBoundMethod();
+			return () => Math.floor(f0(1, 25));
+		},
+		() => 360,
+		() => "ultimate3",
+		() => "ending",
+		() => "goToMap",
+		() => 9705,
+		() => 8484,
+		() => 19851,
+		() => 8556,
+		() => "checkPoint",
+		() => "game0ver",
+		() => "interaksi",
+		() => "damage",
+		p => {
+			const n0 = p._GetNode(0);
+			const n1 = p._GetNode(1);
+			return () => (70 * (n0.ExpInstVar() / n1.ExpInstVar()));
+		},
+		() => "shh",
+		() => "boom",
+		p => {
+			const n0 = p._GetNode(0);
+			return () => (n0.ExpBehavior() + 70);
+		},
+		() => "dll",
+		p => {
+			const f0 = p._GetNode(0).GetBoundMethod();
+			return () => Math.floor(f0(6, 8));
+		},
+		p => {
+			const f0 = p._GetNode(0).GetBoundMethod();
+			return () => Math.floor(f0(2, 4));
+		},
+		p => {
+			const f0 = p._GetNode(0).GetBoundMethod();
+			return () => f0(40, 60);
+		},
+		p => {
+			const f0 = p._GetNode(0).GetBoundMethod();
+			return () => Math.floor(f0(5, 20));
+		},
+		p => {
+			const f0 = p._GetNode(0).GetBoundMethod();
+			return () => Math.floor(f0(5, 15));
+		},
+		p => {
+			const v0 = p._GetNode(0).GetVar();
+			return () => (v0.GetValue() + 10);
+		},
+		p => {
+			const f0 = p._GetNode(0).GetBoundMethod();
+			return () => f0(0, 20);
+		},
+		() => "open",
+		() => "chestB",
+		p => {
+			const f0 = p._GetNode(0).GetBoundMethod();
+			return () => f0(0, 3);
+		},
+		() => "chestP",
+		p => {
+			const f0 = p._GetNode(0).GetBoundMethod();
+			return () => f0(0, 4);
+		},
+		() => 14,
 		p => {
 			const f0 = p._GetNode(0).GetBoundMethod();
 			return () => f0();
@@ -4996,82 +5426,69 @@ self.C3_ExpressionFuncs = [
 			return () => (3 * v0.GetValue());
 		},
 		p => {
-			const v0 = p._GetNode(0).GetVar();
-			return () => (and(v0.GetValue(), " / ") + "Unknown");
+			const n0 = p._GetNode(0);
+			return () => (n0.ExpObject() - 35);
+		},
+		p => {
+			const n0 = p._GetNode(0);
+			return () => (n0.ExpObject() - 40);
+		},
+		p => {
+			const n0 = p._GetNode(0);
+			return () => (n0.ExpObject() + 30);
+		},
+		p => {
+			const n0 = p._GetNode(0);
+			return () => (600 * (n0.ExpInstVar() / 1000));
 		},
 		p => {
 			const v0 = p._GetNode(0).GetVar();
-			return () => (v0.GetValue() + 10);
+			return () => (200 * (v0.GetValue() / 100));
 		},
-		() => 80,
-		() => 360,
-		() => 2,
 		p => {
-			const f0 = p._GetNode(0).GetBoundMethod();
-			return () => f0(0, 20);
+			const v0 = p._GetNode(0).GetVar();
+			return () => (250 * (v0.GetValue() / 100));
 		},
-		() => -5,
-		() => "explode",
-		() => -10,
-		() => 0.3,
+		() => "GlowVertical",
+		() => 200,
+		() => "mob",
+		() => "blink",
+		() => "run",
+		p => {
+			const n0 = p._GetNode(0);
+			return () => (n0.ExpObject() + 300);
+		},
+		p => {
+			const n0 = p._GetNode(0);
+			return () => (n0.ExpObject() + 150);
+		},
+		p => {
+			const n0 = p._GetNode(0);
+			return () => (n0.ExpObject() - 300);
+		},
+		p => {
+			const n0 = p._GetNode(0);
+			return () => (n0.ExpObject() - 150);
+		},
 		() => "attack_2",
-		() => "idle",
-		() => 0.2,
-		() => "attack",
-		() => 0.6,
-		() => "hit",
 		p => {
 			const n0 = p._GetNode(0);
-			return () => (n0.ExpBehavior() + 70);
+			const f1 = p._GetNode(1).GetBoundMethod();
+			return () => (n0.ExpObject() + f1(40, 150));
 		},
 		p => {
 			const n0 = p._GetNode(0);
-			const n1 = p._GetNode(1);
-			const n2 = p._GetNode(2);
-			const n3 = p._GetNode(3);
-			return () => C3.distanceTo(n0.ExpObject(), n1.ExpObject(), n2.ExpObject(), n3.ExpObject());
+			const f1 = p._GetNode(1).GetBoundMethod();
+			return () => (n0.ExpObject() + f1(10, 30));
 		},
-		() => 90,
-		() => "open",
-		() => "chestB",
-		p => {
-			const f0 = p._GetNode(0).GetBoundMethod();
-			return () => f0(0, 3);
-		},
-		() => "chestP",
-		p => {
-			const f0 = p._GetNode(0).GetBoundMethod();
-			return () => f0(0, 4);
-		},
-		() => 14,
-		() => 40,
-		p => {
-			const f0 = p._GetNode(0).GetBoundMethod();
-			return () => Math.floor(f0(5, 20));
-		},
-		p => {
-			const f0 = p._GetNode(0).GetBoundMethod();
-			return () => Math.floor(f0(5, 15));
-		},
-		() => 70,
-		p => {
-			const n0 = p._GetNode(0);
-			return () => (n0.ExpBehavior() + 200);
-		},
-		() => "bullet",
-		() => 9705,
-		() => 8484,
-		() => "Game Over",
-		() => "Please Be Patient, you will wake up again",
-		() => 120,
-		() => -100,
-		() => 4,
-		() => 19851,
-		() => 8556,
-		p => {
-			const f0 = p._GetNode(0).GetBoundMethod();
-			return () => f0(40, 60);
-		},
+		() => 700,
+		() => "PauseMenu",
+		() => "HighlightShadow",
+		() => 7,
+		() => 224,
+		() => 7206,
+		() => 7205,
+		() => 7207,
 		() => "Di Suatu Desa Terdapatlah gadis Cantik dan pria Tampan  yang dikenal oleh banyak Masyarakat Bernama Dian Meng Dan Bouo Meng",
 		() => "Walaupun memiliki nama ras yang sama mereka bukanlah satu keluarga ataupun satu saudara",
 		() => "Pada suatu hari di pedalaman desa. Dian Meng, Bouo Meng, dan teman-temannya bermain di pinggir-pinggir sungai",
@@ -5080,14 +5497,12 @@ self.C3_ExpressionFuncs = [
 		() => 1.8,
 		() => "Bouo Meng sang gadis cantik harus terjatuh dari sungai. tidak di ketahui penyebabnya. kini Bouo Meng Terseret derasnya arus sungai",
 		() => "Sontak Dian Meng pun panik ingin segera menyusul Bouo Meng, Namun teman-teman Dian Meng menghalangi Dian Meng Untuk Menolong Bouo Meng karna arus yang begitu hebat",
-		() => 6,
 		() => "Terpaksa DIan Meng harus berkelahi dengan beberapa temannya. terjadi Perkelahian Singkat Antara Dian Meng Dan beberapa temannya. Pada Akhirnya",
 		() => "Dian Meng Masuk kedalam derasnya arus sungai untuk menyusul Bouo Meng yang terseret Sungai",
 		() => "Press W to continue",
 		() => "~ ~ Please Wait",
 		() => "map_1",
 		() => "Glaica",
-		() => 8,
 		() => "Hey Aku Baru melihatmu disini! Siapa kamu? Penyusup!!",
 		() => "Dian Meng",
 		() => "Bukan, Aku Bukan Penyusup",
@@ -5120,7 +5535,6 @@ self.C3_ExpressionFuncs = [
 		() => 4614,
 		() => "Kini dengan bahagia, Dian meng dapat berjumpa kembali dan melihat senyuman manis yang memerah pada bibir Bouo Meng",
 		() => "Bouo Meng tampak begitu ceria, senyuman di bibirnya menandakan perasaaan bahagia, sebab akhirnya ada orang yang menemuinya sampai tidak bisa berkata apa-apa",
-		() => 7,
 		() => "Bouo Meng? *Sambil tersenyum Ceria",
 		() => 5.5,
 		() => "Belum Sempat berbincang apa-apa. Bouo Meng tiba tiba membuat wajah yang sedih serta mata yang berkaca-kaca",
@@ -5129,13 +5543,10 @@ self.C3_ExpressionFuncs = [
 		() => "Dan tidak lama pergi dari dari hadapan Dian Meng sambil menangis",
 		() => 4080,
 		() => "up",
-		() => 750,
 		() => "Bouo Meng? Tunggu!!",
 		() => 4090,
-		() => 300,
 		() => 230,
 		() => "Dian Meng Penuh Kebingungan. Mencoba mengejar Bouo Meng yang berlari dengan Cepat. Kepergian Bouo Meng Diiringi oleh suara tangisan yang tersedu-sedu.",
-		() => 200,
 		() => 400,
 		() => 410,
 		() => 760,
@@ -5144,7 +5555,6 @@ self.C3_ExpressionFuncs = [
 		() => "Ini Buku Kesayangan Milik Bouo Meng. Namun Mengapa halamannya tersobek sobek?",
 		() => "Setelah beberapa saat dirinya baru menyadari bahwa potongan kertas lainnya berada di Tangan Dian Meng, yang ia kumpulkan dari sepanjang perjalanan",
 		() => "Sontak Dian Meng segera menyusun nya sehingga membentuk sebuah lembaran dengan tulisan indah atas nama Bouo Meng",
-		() => 25,
 		() => "Teruntuk Dian Meng,\n\nKau sudah cukup keras untuk mengejar kepergianku.\nKini saat nya bagimu untuk beristirahat dan menikmati Duniamu.\n\n",
 		() => 9,
 		() => "\nTerimakasih telah menjadi bagian dari kisah hidupku\ndan Telah menemukanku di  dunia ini.\n\n",
@@ -5194,13 +5604,25 @@ self.C3_ExpressionFuncs = [
 		() => "// Kamu tidak bisa membaca lembaran surat Bouo Meng. \\\\",
 		() => "Dian Meng diam sejenak,\nEmosi sedih, hampa, kehilangan kini menyelimuti dirinya.\nDirinya tak pernh menyangka atas hasil akhirnya akan berakhir seperti ini.\n\nWalau fisik kami kini dekat namun kenyataan nya tak sama seperti harapan Dian Meng.\n\n",
 		() => "Dengan sigap Kini, Dian Meng memeluk Bouo Meng dengan erat sambil menangis.",
-		() => 13,
 		() => "Air mata Dian Meng mengalir begitu cepat. menandakan bahwa dirinya sudah benar-benar menyayangi Bouo Meng. \n\nDirinya merasa bahwa hidup tak akan sempurna tanpanya.\nMenandakan bahwa kehadiran Bouo Meng dalam hari-hari Dian Meng Begitu berharga dan berarti.",
 		() => "Sontak Bouo Meng pun mengerti atas perasaan Dian Meng dan segera meminta maaf padanya atas pilihannya. \n\nLalu Ikut menangis.\n\n",
 		() => "Akhirnya Pelukan hangat dikeduanya berlangsung cukup lama dan\n\n",
 		() => "Ceritapun Selesai . .",
 		() => "One day, all we can do is Accept A reality",
-		() => "\n\n~ Bouo Meng\n"
+		() => "\n\n~ Bouo Meng\n",
+		() => 7029,
+		() => 7030,
+		() => 7900,
+		() => 7211,
+		() => 7031,
+		() => 7021,
+		() => 7022,
+		() => 7023,
+		() => 4440,
+		() => 7017,
+		() => 7018,
+		() => 7212,
+		() => 7019
 ];
 
 
